@@ -1,6 +1,6 @@
 {% set python_min = "3.11" %}
 {% set name = "pyramids" %}
-{% set version = "0.79.0" %}
+{% set version = "0.80.0" %}
 
 
 
@@ -10,7 +10,7 @@ package:
 
 source:
   url: https://github.com/serapeum-org/pyramids-core/archive/{{ version }}.tar.gz
-  sha256: a186a3e1f19957df0a63eff44e3dc54e0ea9a1992ba2dc4c5140e05058d1195e
+  sha256: 3d73d4f11ff424b6a99d0ebad1a6ef8467963a2b1f719e5197a2f9dca709c544
 
 build:
   number: 0
@@ -50,29 +50,12 @@ requirements:
   run_constrained:
     # viz — `cleopatra-tiles` is the conda-forge equivalent of the PyPI
     # `cleopatra[tiles]` extra (pulls cleopatra + mercantile + xyzservices + Pillow).
-    - cleopatra-tiles >=0.44.0
-    # xarray — peer interop dep (no longer a dedicated extra in pyproject 0.33.0)
-    - xarray >=2023.1.0
-    # lazy — now also bundles kerchunk + h5py for the NetCDF/HDF5 lazy path.
-    # h5py must come from conda-forge: PyPI h5py wheels bundle their own HDF5
-    # and DLL-shadow on Windows once two HDF5 backends load in-process.
-    # hdf5 is held at 1.14.* NOT because libgdal-netcdf lacks hdf5 2.x builds
-    # (it ships both, as does h5py 3.16) but because of the shared AWS-SDK:
-    # GDAL (/vsis3/) and Arrow (S3 parquet) link one aws-sdk-cpp, and the
-    # hdf5-2 GDAL builds pin a different AWS-SDK patch than libarrow needs, so
-    # hdf5 2.x does not co-solve with the arrow/parquet stack yet — see
-    # serapeum-org/pyramids-core#1419. The <3.17 cap vets a future 3.17 first.
-    - dask-core >=2024.1.0
-    - distributed >=2024.1.0
-    - zarr >=3
-    - fsspec >=2024.1.0
-    - s3fs >=2024.1.0
-    - kerchunk >=0.2.10
-    - h5py >=3.8.0,<3.17
-    - hdf5 1.14.*
-    # parquet — now also bundles dask-geopandas (the former parquet-lazy extra).
+    - cleopatra-tiles >=0.46.1
+    # parquet — core's eager GeoParquet (read_parquet/to_parquet) via pyarrow.
+    # The lazy compute backend (dask/zarr/kerchunk/h5py) and the lazy vector path
+    # (dask-geopandas) moved to the separate `pyramids-lazy` plugin as of 0.80.0,
+    # so they are no longer pyramids-core extras and are dropped here.
     - pyarrow >=10.0.0
-    - dask-geopandas >=0.5.0
     # stac — conda-forge equivalent of the PyPI `stac` extra. The PyPI extra also
     # pins stac-asset>=0.4.7, which is not yet packaged on conda-forge; add it here
     # once it lands on the channel.
@@ -98,30 +81,7 @@ outputs:
         - {{ pin_subpackage(name, exact=True) }}
         # conda-forge equivalent of the PyPI `cleopatra[tiles]` extra
         # (cleopatra + mercantile + xyzservices + Pillow).
-        - cleopatra-tiles >=0.44.0
-    test:
-      imports:
-        - pyramids
-
-  - name: {{ name }}-lazy
-    build:
-      noarch: python
-    requirements:
-      run:
-        - {{ pin_subpackage(name, exact=True) }}
-        - dask-core >=2024.1.0
-        - distributed >=2024.1.0
-        - zarr >=3
-        - fsspec >=2024.1.0
-        - s3fs >=2024.1.0
-        # kerchunk + h5py for the NetCDF/HDF5 lazy (Zarr-reference) path.
-        # h5py from conda-forge only (PyPI wheels bundle their own HDF5 and
-        # DLL-shadow on Windows). hdf5 stays on 1.14.* because the hdf5-2 GDAL
-        # builds pin a different AWS-SDK patch than libarrow needs, so hdf5 2.x
-        # does not co-solve with arrow/parquet — serapeum-org/pyramids-core#1419.
-        - kerchunk >=0.2.10
-        - h5py >=3.8.0,<3.17
-        - hdf5 1.14.*
+        - cleopatra-tiles >=0.46.1
     test:
       imports:
         - pyramids
@@ -131,9 +91,10 @@ outputs:
       noarch: python
     requirements:
       run:
-        - {{ pin_subpackage(name ~ '-lazy', exact=True) }}
+        - {{ pin_subpackage(name, exact=True) }}
+        # conda-forge equivalent of the PyPI `parquet` extra (pyarrow only). The
+        # lazy vector path (dask-geopandas) moved to the `pyramids-lazy` plugin.
         - pyarrow >=10.0.0
-        - dask-geopandas >=0.5.0
     test:
       imports:
         - pyramids
